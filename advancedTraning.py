@@ -4,6 +4,7 @@ import sys
 import time
 import numpy as np
 from typing import Any, List, Tuple, Union
+import pandas as pd
 
 from keras_preprocessing.image import ImageDataGenerator
 from tensorflow.keras.datasets import mnist
@@ -23,6 +24,7 @@ import pickle
 from tensorflow.keras.applications import vgg16
 from tensorflow.keras.applications.vgg16 import preprocess_input
 from tensorflow.keras import layers, models, Model, optimizers
+from tensorflow.keras.callbacks import CSVLogger
 
 def hms_string(sec_elapsed):
     h = int(sec_elapsed / (60 * 60))
@@ -106,7 +108,7 @@ class Logger(object):
 
 
 def obtain_data():
-    data = "testdata"
+    data = "color"
 
     category_names = sorted(os.listdir(data))
     nb_categories = len(category_names)  # number of category --
@@ -138,11 +140,14 @@ def obtain_data():
 
 
 outdir = "./data/"
-run_desc = "test-train"
+run_desc = "train"
 batch_size = 8
-num_classes = 10
+# num_classes = 10
 img_height, img_width = 256,256
-learning_rate = 5e-5
+# learning_rate = 5e-5
+learning_rate = 1e-4
+
+history={}
 
 # nb_categories,category_names = obtain_data()
 
@@ -169,6 +174,10 @@ class MyModelCheckpoint(ModelCheckpoint):
           'epoch': epoch+1
          # Add additional keys if you need to store more values
         }, fp, protocol=pickle.HIGHEST_PROTOCOL)
+    # hist_df = pd.DataFrame(history.history)
+    # hist_json_file = 'history/history' + str(epoch + 1)  + '.json'
+    # with open(hist_json_file, mode='w') as f:
+    #     hist_df.to_json(f)
     print('\nEpoch %05d: saving optimizaer to %s' % (epoch + 1, filepath))
 
 def step_decay_schedule(initial_lr=1e-3, decay_factor=0.75, step_size=10):
@@ -212,9 +221,12 @@ def train_model(model, initial_epoch=0, max_epochs=10):
         os.path.join(run_dir, 'model-{epoch:02d}-{val_loss:.2f}.hdf5'),
         monitor='val_loss',verbose=1)
 
-    lr_sched_cb = step_decay_schedule(initial_lr=1e-4, decay_factor=0.75, \
+    lr_sched_cb = step_decay_schedule(initial_lr=learning_rate, decay_factor=0.75, \
                                       step_size=2)
-    cb = [checkpoint_cb, lr_sched_cb]
+    # 1e-4
+    csv_logger = CSVLogger("history/model_history.csv", append=True)
+
+    cb = [checkpoint_cb, lr_sched_cb,csv_logger]
 
     # history = model.fit(train_generator,
     #                     epochs=epochs,
@@ -223,12 +235,17 @@ def train_model(model, initial_epoch=0, max_epochs=10):
     #                     callbacks=[checkpoint]
     #                     )
 
-    model.fit(train_generator,
+    history = model.fit(train_generator,
               batch_size=batch_size,
               epochs=max_epochs,
               initial_epoch = initial_epoch,
               verbose=2, callbacks=cb,
-              validation_data=val_generator)
+              validation_data=val_generator,
+              # use_mutiprocessing = True
+                        )
+
+
+
     score = model.evaluate(train_generator, verbose=0, callbacks=cb)
     print('Test loss: {}'.format(score[0]))
     print('Test accuracy: {}'.format(score[1]))

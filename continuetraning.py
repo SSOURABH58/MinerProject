@@ -10,9 +10,10 @@ from keras_preprocessing.image import ImageDataGenerator
 import numpy as np
 
 from tensorflow.keras import optimizers
+from tensorflow.python.keras.callbacks import CSVLogger
 
-MODEL_PATH = './data/00000-test-train/model-03-0.00.hdf5'
-OPT_PATH = './data/00000-test-train/model-03-0.00.pkl'
+MODEL_PATH = './data/00010-cont-train/model-07-2.18.hdf5'
+OPT_PATH = './data/00010-cont-train/model-07-2.18.pkl'
 
 import tensorflow as tf
 from tensorflow.keras.models import load_model
@@ -100,14 +101,14 @@ class Logger(object):
 
 
 def obtain_data():
-    data = "testdata"
+    data = "testing"
 
     category_names = sorted(os.listdir(data))
     nb_categories = len(category_names)  # number of category --
 
     # only rescaling
     datagen = ImageDataGenerator(
-        rescale=1. / 255, validation_split=0.2
+        rescale=1. / 255, validation_split=0.4
     )
     # these are generators for train/test data that will read pictures #found in the defined subfolders of 'data/'
     print('Total number of train images :')
@@ -142,7 +143,7 @@ def load_model_data(model_path, opt_path):
 epoch, model, opt = load_model_data(MODEL_PATH, OPT_PATH)
 
 outdir = "./data/"
-run_desc = "test-train"
+run_desc = "cont-train"
 batch_size = 8
 num_classes = 10
 img_height, img_width = 256,256
@@ -197,7 +198,9 @@ def train_model(model, initial_epoch=0, max_epochs=10):
 
     lr_sched_cb = step_decay_schedule(initial_lr=1e-4, decay_factor=0.75, \
                                       step_size=2)
-    cb = [checkpoint_cb, lr_sched_cb]
+    csv_logger = CSVLogger("history/model_history.csv", append=True)
+
+    cb = [checkpoint_cb, lr_sched_cb,csv_logger]
 
     # history = model.fit(train_generator,
     #                     epochs=epochs,
